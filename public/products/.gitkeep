@@ -1,0 +1,11 @@
+# Place company and product assets here.
+#
+# Expected files (replace placeholders when available):
+#   logo.svg          — Company logo (currently using text-based placeholder)
+#   products/
+#     smartlandlords.png
+#     onthefarmtoday.png
+#     transit-haven.png
+#
+# To use product images, update src/data/site.ts:
+#   visual: { type: "image", src: "/products/smartlandlords.png", alt: "..." }
