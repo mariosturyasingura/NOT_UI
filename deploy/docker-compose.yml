@@ -1,0 +1,14 @@
+name: not-ui
+
+services:
+  ui:
+    image: ${UI_IMAGE_REPO:-not-ui}:${IMAGE_TAG:-latest}
+    container_name: not-ui
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${UI_HOST_PORT:-8083}:3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5

@@ -1,0 +1,165 @@
+name: Deploy UI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+concurrency:
+  group: not-ui-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deploy secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST_PRODUCTION }}
+          SSH_USER: ${{ secrets.SSH_USER_PRODUCTION }}
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY_PRODUCTION }}
+          GHCR_USER: ${{ secrets.GHCR_PULL_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+          REMOTE_DIR: ${{ secrets.REMOTE_APP_DIR_UI }}
+        run: |
+          set -euo pipefail
+          missing=""
+          [ -z "$SSH_HOST" ] && missing="${missing} SSH_HOST_PRODUCTION"
+          [ -z "$SSH_USER" ] && missing="${missing} SSH_USER_PRODUCTION"
+          [ -z "$SSH_KEY" ] && missing="${missing} SSH_PRIVATE_KEY_PRODUCTION"
+          [ -z "$REMOTE_DIR" ] && missing="${missing} REMOTE_APP_DIR_UI"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing GitHub Actions secrets:$missing"
+            exit 1
+          fi
+          if [ -z "$GHCR_USER" ] || [ -z "$GHCR_TOKEN" ]; then
+            echo "::notice::GHCR_PULL_* not set — OK for CI deploy (images stream via docker save/load). Required only for manual docker pull on VPS."
+          fi
+
+      - name: Set GHCR image name
+        id: ghcr
+        run: |
+          owner_lc="$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')"
+          echo "image=ghcr.io/${owner_lc}/not-ui" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push UI image
+        env:
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          IMAGE="${{ steps.ghcr.outputs.image }}"
+          docker build -t "${IMAGE}:${IMAGE_TAG}" .
+          docker push "${IMAGE}:${IMAGE_TAG}"
+
+      - name: Package deployment bundle
+        run: tar czf ui-deploy-bundle.tgz deploy deploy.sh
+
+      - name: Configure SSH key (runner only)
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY_PRODUCTION }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+
+      - name: Add server host key (ssh-keyscan)
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST_PRODUCTION }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          host="$(printf '%s' "$SSH_HOST" | tr -d '\r\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+          if [ -z "$host" ]; then
+            echo '::error::Empty SSH host. Set SSH_HOST_PRODUCTION.'
+            exit 1
+          fi
+          if command -v nc >/dev/null 2>&1; then
+            if ! nc -z -w 15 "$host" 22; then
+              echo "::error::No route to $host:22 from this GitHub runner."
+              exit 1
+            fi
+          fi
+          if ! timeout 60 ssh-keyscan -H "$host" >> ~/.ssh/known_hosts 2>ssh-keyscan.err; then
+            cat ssh-keyscan.err 2>/dev/null || true
+            exit 1
+          fi
+
+      - name: SSH preflight
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST_PRODUCTION }}
+          SSH_USER: ${{ secrets.SSH_USER_PRODUCTION }}
+        run: |
+          ssh -i ~/.ssh/id_ed25519 \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            "${SSH_USER}@${SSH_HOST}" \
+            "echo ssh-ok"
+
+      - name: Upload artifacts to server
+        env:
+          REMOTE_APP_DIR: ${{ secrets.REMOTE_APP_DIR_UI }}
+          SSH_HOST: ${{ secrets.SSH_HOST_PRODUCTION }}
+          SSH_USER: ${{ secrets.SSH_USER_PRODUCTION }}
+        run: |
+          set -euo pipefail
+          test -n "$REMOTE_APP_DIR"
+          ssh -i ~/.ssh/id_ed25519 \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            "${SSH_USER}@${SSH_HOST}" \
+            "mkdir -p /tmp '${REMOTE_APP_DIR}' && rm -f /tmp/ui-deploy-bundle.tgz"
+          cat ui-deploy-bundle.tgz | \
+            ssh -i ~/.ssh/id_ed25519 \
+              -o BatchMode=yes \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "${SSH_USER}@${SSH_HOST}" \
+              "cat > /tmp/ui-deploy-bundle.tgz"
+
+      - name: Deploy on server
+        env:
+          REMOTE_APP_DIR: ${{ secrets.REMOTE_APP_DIR_UI }}
+          UI_IMAGE_REPO: ${{ steps.ghcr.outputs.image }}
+          IMAGE_TAG: ${{ github.sha }}
+          SSH_HOST: ${{ secrets.SSH_HOST_PRODUCTION }}
+          SSH_USER: ${{ secrets.SSH_USER_PRODUCTION }}
+        run: |
+          set -euo pipefail
+          echo "📦 Streaming image to server (bypasses GHCR pull on VPS)..."
+          docker save "${UI_IMAGE_REPO}:${IMAGE_TAG}" | gzip -1 | \
+            ssh -i ~/.ssh/id_ed25519 \
+              -o BatchMode=yes \
+              -o IdentitiesOnly=yes \
+              -o StrictHostKeyChecking=accept-new \
+              "${SSH_USER}@${SSH_HOST}" \
+              "gunzip | docker load"
+          ssh -i ~/.ssh/id_ed25519 \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=accept-new \
+            "${SSH_USER}@${SSH_HOST}" "
+            set -euo pipefail
+            mkdir -p '${REMOTE_APP_DIR}'
+            tar xzf /tmp/ui-deploy-bundle.tgz -C '${REMOTE_APP_DIR}'
+            rm -f /tmp/ui-deploy-bundle.tgz
+            cd '${REMOTE_APP_DIR}'
+            chmod +x deploy.sh
+            SKIP_COMPOSE_PULL=1 IMAGE_TAG='${IMAGE_TAG}' UI_IMAGE_REPO='${UI_IMAGE_REPO}' ./deploy.sh
+          "
