@@ -1,10 +1,10 @@
 import type { MetadataRoute } from "next";
-import { company, products } from "@/data/site";
+import { products, siteUrl } from "@/data/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
-      url: "https://neworigintech.com",
+      url: siteUrl,
       lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 1,

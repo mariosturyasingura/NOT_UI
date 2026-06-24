@@ -43,6 +43,8 @@ export interface CompanyInfo {
   };
 }
 
+export const siteUrl = "https://neworigin.tech";
+
 export const company: CompanyInfo = {
   name: "New Origin Tech Ltd",
   shortName: "N.O.T",
@@ -53,7 +55,7 @@ export const company: CompanyInfo = {
     "We believe every industry deserves tools built for how it actually works — not borrowed from somewhere else.",
   location: "Uganda",
   contact: {
-    email: "hello@neworigintech.com",
+    email: "neworigintech.ug@gmail.com",
   },
   logo: {
     src: "/logo.png",

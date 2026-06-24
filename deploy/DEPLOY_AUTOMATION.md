@@ -2,6 +2,8 @@
 
 Production-only deploy: **GitHub Actions → GHCR → SSH → Docker Compose on VPS**.
 
+**Same VPS as MyHotel** (`172.232.102.130`, user `deploy`). Reuse the MyHotel deploy key (`~/me/MyHotel/myhotel_deploy_ci_ed25519`) for local SSH and the same `SSH_PRIVATE_KEY_PRODUCTION` / `SSH_HOST_PRODUCTION` GitHub secrets as MyHotel.
+
 Unlike MyHotel (Vite static + nginx), this app is **Next.js** and runs `node server.js` inside the container on port **3000**.
 
 ## Server layout
@@ -20,9 +22,9 @@ Unlike MyHotel (Vite static + nginx), this app is **Next.js** and runs `node ser
 
 | Secret | Value |
 |--------|-------|
-| `SSH_HOST_PRODUCTION` | VPS IP or hostname |
+| `SSH_HOST_PRODUCTION` | `172.232.102.130` (same as MyHotel) |
 | `SSH_USER_PRODUCTION` | `deploy` |
-| `SSH_PRIVATE_KEY_PRODUCTION` | ed25519 deploy key |
+| `SSH_PRIVATE_KEY_PRODUCTION` | Same ed25519 key as MyHotel (`myhotel_deploy_ci_ed25519`) |
 | `REMOTE_APP_DIR_UI` | `/var/www/N.O.T/NOT_UI` |
 | `GHCR_PULL_USERNAME` | GitHub username (optional for CI) |
 | `GHCR_PULL_TOKEN` | PAT with `read:packages` (optional for CI) |
@@ -36,6 +38,8 @@ Deploy triggers on push to `main` or `master` only.
 | N.O.T UI | `127.0.0.1:8083` |
 
 Host nginx must **proxy** `/` to this port. MyHotel uses `8081`/`8082`, so N.O.T uses `8083`.
+
+Domain: **neworigin.tech** (and `www.neworigin.tech`). Install nginx with `scripts/install-nginx.sh` after DNS points at the VPS and certbot has issued a cert for `neworigin.tech`.
 
 ## Local container test
 
