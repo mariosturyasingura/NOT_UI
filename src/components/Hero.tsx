@@ -52,7 +52,7 @@ export function Hero() {
           transition={{ duration: 0.5, delay: 0.25 }}
           className="mb-8 text-sm tracking-[0.2em] uppercase text-neutral-500"
         >
-          {company.location} &mdash; Software Company
+          Software Company
         </motion.p>
 
         <div className="overflow-hidden">
