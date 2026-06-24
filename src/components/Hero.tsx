@@ -26,7 +26,7 @@ export function Hero() {
   return (
     <section
       id="hero"
-      className="hero-light relative flex min-h-screen flex-col justify-end px-6 pb-16 md:justify-center md:pb-0"
+      className="hero-light relative flex min-h-screen flex-col justify-end px-6 pb-12 md:justify-center md:pb-0"
     >
       <div className="mx-auto w-full max-w-6xl pt-28 md:pt-32">
         {/* Main brand lockup — fills the space above the headline */}
@@ -93,11 +93,11 @@ export function Hero() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.5, delay: 0.7 }}
-          className="mt-10 flex flex-wrap items-center gap-5"
+          className="mt-10 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5"
         >
           <a
             href="#products"
-            className="group inline-flex items-center gap-2 border border-neutral-900 bg-neutral-900 px-6 py-3 text-sm tracking-wide text-white transition-all hover:bg-transparent hover:text-neutral-900"
+            className="group inline-flex items-center justify-center gap-2 border border-neutral-900 bg-neutral-900 px-6 py-3 text-sm tracking-wide text-white transition-all hover:bg-transparent hover:text-neutral-900 sm:justify-start"
           >
             View Products
             <span className="transition-transform group-hover:translate-x-1">
@@ -106,7 +106,7 @@ export function Hero() {
           </a>
           <a
             href="#contact"
-            className="text-sm tracking-wide text-neutral-500 transition-colors hover:text-neutral-900"
+            className="inline-flex items-center justify-center py-3 text-sm tracking-wide text-neutral-500 transition-colors hover:text-neutral-900 sm:justify-start sm:py-0"
           >
             Get in touch
           </a>
@@ -117,7 +117,7 @@ export function Hero() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.5, delay: 1 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2"
+        className="pointer-events-none absolute bottom-10 left-1/2 hidden -translate-x-1/2 md:block"
       >
         <motion.div
           animate={{ y: [0, 6, 0] }}
