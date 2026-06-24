@@ -6,6 +6,18 @@ Production-only deploy: **GitHub Actions → GHCR → SSH → Docker Compose on 
 
 Unlike MyHotel (Vite static + nginx), this app is **Next.js** and runs `node server.js` inside the container on port **3000**.
 
+## One-time VPS bootstrap (required before first deploy)
+
+The `deploy` user cannot create `/var/www/N.O.T` — run once on the Linode as root:
+
+```bash
+sudo bash -c 'mkdir -p /var/www/N.O.T/NOT_UI /var/www/N.O.T/deployments/locks && chown -R deploy:deploy /var/www/N.O.T'
+```
+
+Or copy `scripts/vps-bootstrap.sh` to the server and run `sudo bash vps-bootstrap.sh`.
+
+Then re-run the failed GitHub Actions workflow.
+
 ## Server layout
 
 ```
